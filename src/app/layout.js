@@ -13,7 +13,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className='h-[100%]'>
-      <body className={notoSans.className + ' h-[100%] overflow-hidden'}>
+      <body className={notoSans.className + ' h-[100%] overflow-hidden'} suppressHydrationWarning>
         {children}
       </body>
     </html>

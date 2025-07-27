@@ -1,19 +1,20 @@
 'use client'
 import Card from "@/app/components/card";
-import {IconLocation, IconSunrise, IconSunset, IconSun, IconCloud} from "@tabler/icons-react";
-import React,  {Suspense, useEffect, useState} from "react";
+import {IconLocation, IconSunrise, IconSunset, IconSun, IconCloud, IconCloudRain} from "@tabler/icons-react";
+import React,  {Suspense, useEffect, useState, PureComponent} from "react";
 import WMO from "./JSON/wmo_codes.json"
 import NewYorkIMG from "../../public/new_york.png"
 import Image from "next/image";
+import {Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
+
 
 const CurrentTemp = React.lazy(() =>
   getWeather().then((data) => {
     return {
       default: () => {
         return (
-          <div>
-            {Math.round(parseInt(data.current.temperature_2m))}
-            <span className='text-3xl'>&deg;</span>
+          <div className='flex'>
+            {Math.round(parseInt(data.current.temperature_2m))}<p className='text-4xl'>&deg;</p>
           </div>
         )
       }
@@ -34,6 +35,14 @@ const CurrentCondition = React.lazy(() =>
           <p className='text-sm flex mt-1 items-center'>
             {WMO[data.current.weather_code][dayOrNight].description.toLowerCase().includes('sunny') && <IconSun size={16} className='mr-1'/>}
             {WMO[data.current.weather_code][dayOrNight].description.toLowerCase().includes('cloudy') && <IconCloud size={16} className='mr-1'/>}
+            {
+              (
+                WMO[data.current.weather_code][dayOrNight].description.toLowerCase().includes('drizzle') ||
+                WMO[data.current.weather_code][dayOrNight].description.toLowerCase().includes('rain')
+              )
+              &&
+              <IconCloudRain size={16} className='mr-1'/>
+            }
             {WMO[data.current.weather_code][dayOrNight].description}
           </p>
         )
@@ -41,6 +50,45 @@ const CurrentCondition = React.lazy(() =>
     }
   })
 );
+
+const RainGraph = React.lazy(() =>
+  getWeather().then((data) => {
+    return {
+      default: () => {
+        let transposedData = []
+        for(let i = 0; i < data.hourly.time.length; i++) {
+          transposedData.push({
+            temp: data.hourly.temperature_2m[i],
+            time: new Date(data.hourly.time[i]).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+          })
+        }
+        return (
+          <div className='w-full h-[200px]'>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                width={500}
+                height={400}
+                data={transposedData}
+                margin={{
+                  top: 10,
+                  right: 30,
+                  left: 0,
+                  bottom: 0,
+                }}
+              >
+                <XAxis dataKey="time" />
+                <YAxis />
+                <Tooltip />
+                <CartesianGrid strokeDasharray="0" horizontal={false} />
+                <Area type="monotone" dataKey="temp" stroke="#5D9CE6" fill="#5D9CE6" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      }
+    }
+  })
+)
 
 const Sunrise = React.lazy(() =>
   getWeather().then((data) => {
@@ -83,7 +131,7 @@ const LargeSkeletonSquare = () => {
 }
 
 const getWeather = async () => {
-  const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.74911820836033&longitude=-73.98520608203322&current=temperature_2m,weather_code&hourly=temperature_2m&daily=sunrise,sunset&temperature_unit=fahrenheit&timezone=America%2FNew_York&models=gfs_seamless')
+  const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.74911820836033&longitude=-73.98520608203322&current=temperature_2m,weather_code&hourly=rain,precipitation_probability,temperature_2m&daily=sunrise,sunset&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1&models=gfs_seamless')
 
   if (!response.ok) {
     throw new Error("error");
@@ -162,7 +210,7 @@ export default function Home() {
           <Suspense className='flex' fallback={
             <LargeSkeletonSquare />
           }>
-            <CurrentTemp state={state} />
+            <CurrentTemp />
           </Suspense>
           <div className='mt-1'>
             <Suspense fallback={
@@ -178,11 +226,13 @@ export default function Home() {
         <b>Welcome to your weather!</b>
         <br/>
         Check out today's weather information
-        <Card>
-          Hello world
-        </Card>
+        <div className='mt-10'>
+          <Card>
+            <RainGraph />
+          </Card>
+        </div>
       </div>
-      <Image className='absolute -bottom-3 -left-3 pointer-events-none' src={NewYorkIMG} />
+      <Image className='absolute -bottom-3 -left-3 pointer-events-none' src={NewYorkIMG} alt='New York Skyline' />
     </div>
   );
 }
